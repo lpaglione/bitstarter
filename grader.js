@@ -27,7 +27,7 @@ var cheerio = require('cheerio');
 var restler = require('restler');
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
-var URLFILE_DEFAULT = "http://stark-tor-5451.herokuapp.com/";
+var URLFILE_DEFAULT = null; //"http://stark-tor-5451.herokuapp.com/";
 
 var assertFileExists = function(infile) {
 	var instr = infile.toString();
@@ -39,18 +39,33 @@ var assertFileExists = function(infile) {
 	return instr;
 };
 
-var processUrl = function(result) {
-	//console.log("entered check");
-	if (result instanceof Error) {
-		console.log("Error: %s", result.message);
-		this.retry(5000); // try again after 5 sec
-		process.exit(1);
-	} else {
-		//sys.puts(result);
-		//console.log(result);
-		return result;
-	}
-	console.log("leaving...");
+var checkHtmlUrl = function(urlfile, checksfile) {
+	restler.get(urlfile).on('complete',function(result) {
+		if (result instanceof Error) {
+			// error in processing the get. Print the error and retry.
+			console.log("Error: %s", result.message);
+			this.retry(5000); // try again after 5 sec
+			process.exit(1); //unsuccessful - exit the program
+		} else {
+			// was able to get the URL. The result contains the HTML
+			console.log("no error. Result is: %s", result); // prints the result (HMTL)
+			var checks = loadChecks(checksfile).sort();
+			console.log("The check file: %s", checks);
+			var out = {};
+			for (var ii in checks) {
+				var present = result.indexOf(checks[ii]) > 0;
+				//console.log(checks[ii]);
+				//console.log(present);
+				//var present = $(checks[ii]).length > 0;
+				out[checks[ii]] = present;
+			}
+		}
+		//console.log(out);
+		//console.log("leaving...");
+		var outJson = JSON.stringify(out, null, 4);
+		console.log(outJson);
+		return outJson;
+	});
 };
 
 var cheerioHtmlFile = function(htmlfile) {
@@ -63,7 +78,9 @@ var loadChecks = function(checksfile) {
 
 var checkHtmlFile = function(htmlfile, checksfile) {
 	$ = cheerioHtmlFile(htmlfile);
+	console.log($);
 	var checks = loadChecks(checksfile).sort();
+	console.log("The check file: %s", checks);
 	var out = {};
 	for (var ii in checks) {
 		var present = $(checks[ii]).length > 0;
@@ -82,16 +99,27 @@ if (require.main == module) {
 	program
 		.option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
 		.option('-f, --file <html_file>', "Path to index.html", clone(assertFileExists), HTMLFILE_DEFAULT)
-		.option('-u, --url <html_name>', "Path to site URL", /*clone(assertUrlExists),*/ URLFILE_DEFAULT)
+		.option('-u, --url <html_url>', "Path to site URL", /*clone(assertUrlExists),*/ URLFILE_DEFAULT)
 		.parse(process.argv);
 	if (program.url) {
-		restler.get(program.url).on('complete',processUrl);
-	} 
+		// Provide feedback about what is being processed
+		console.log("Checking URL file %s", program.url);
+		console.log ("against %s", program.checks);
 
-	var checkJson = checkHtmlFile(program.file, program.checks);
-	var outJson = JSON.stringify(checkJson, null, 4);
-	console.log(outJson);
+		var outJson = checkHtmlUrl(program.url, program.checks);
+		//var outJson = JSON.stringify(checkJson, null, 4);
+		//console.log("printing results...");
+		//console.log(outJson);
+	}  else {
+		// Provide feedback about what is being processed
+		console.log ("checking file %s", program.file);
+		console.log ("against %s", program.checks);
 
+		var checkJson = checkHtmlFile(program.file, program.checks);
+		var outJson = JSON.stringify(checkJson, null, 4);
+		console.log("printing results...");
+		console.log(outJson);
+	}
 
 } else {
 	exports.checkHtmlFile = checkHtmlFile;
