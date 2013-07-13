@@ -48,23 +48,16 @@ var checkHtmlUrl = function(urlfile, checksfile) {
 			process.exit(1); //unsuccessful - exit the program
 		} else {
 			// was able to get the URL. The result contains the HTML
-			console.log("no error. Result is: %s", result); // prints the result (HMTL)
+			$ = cheerio.load(result);
 			var checks = loadChecks(checksfile).sort();
-			console.log("The check file: %s", checks);
 			var out = {};
 			for (var ii in checks) {
-				var present = result.indexOf(checks[ii]) > 0;
-				//console.log(checks[ii]);
-				//console.log(present);
-				//var present = $(checks[ii]).length > 0;
+				var present = $(checks[ii]).length > 0;
 				out[checks[ii]] = present;
 			}
 		}
-		//console.log(out);
-		//console.log("leaving...");
 		var outJson = JSON.stringify(out, null, 4);
 		console.log(outJson);
-		return outJson;
 	});
 };
 
@@ -78,9 +71,7 @@ var loadChecks = function(checksfile) {
 
 var checkHtmlFile = function(htmlfile, checksfile) {
 	$ = cheerioHtmlFile(htmlfile);
-	console.log($);
 	var checks = loadChecks(checksfile).sort();
-	console.log("The check file: %s", checks);
 	var out = {};
 	for (var ii in checks) {
 		var present = $(checks[ii]).length > 0;
@@ -106,10 +97,8 @@ if (require.main == module) {
 		console.log("Checking URL file %s", program.url);
 		console.log ("against %s", program.checks);
 
-		var outJson = checkHtmlUrl(program.url, program.checks);
-		//var outJson = JSON.stringify(checkJson, null, 4);
-		//console.log("printing results...");
-		//console.log(outJson);
+		// checks the URL and prints the result
+		checkHtmlUrl(program.url, program.checks);
 	}  else {
 		// Provide feedback about what is being processed
 		console.log ("checking file %s", program.file);
@@ -117,7 +106,6 @@ if (require.main == module) {
 
 		var checkJson = checkHtmlFile(program.file, program.checks);
 		var outJson = JSON.stringify(checkJson, null, 4);
-		console.log("printing results...");
 		console.log(outJson);
 	}
 
